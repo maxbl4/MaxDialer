@@ -26,8 +26,12 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -97,15 +101,37 @@ fun ContactsScreen(
                 contactRows(results, onOpen)
             }
             loaded && sections.isEmpty() -> EmptyText(stringResource(R.string.no_contacts))
-            else -> LazyColumn(listModifier, contentPadding = PaddingValues(bottom = 24.dp)) {
-                for ((letter, group) in sections) {
-                    item(key = "letter-$letter") { SectionHeader(letter.toString()) }
-                    contactRows(group, onOpen)
+            else -> Box(Modifier.fillMaxSize()) {
+                val listState = rememberLazyListState()
+                val scope = rememberCoroutineScope()
+                // List index of each section header: a header plus its rows per section.
+                val headerIndexes = remember(sections) {
+                    sections.runningFold(0) { index, (_, group) -> index + 1 + group.size }.dropLast(1)
                 }
+                val current by remember(sections, headerIndexes) {
+                    derivedStateOf {
+                        val first = listState.firstVisibleItemIndex
+                        sections.getOrNull(headerIndexes.indexOfLast { it <= first })?.first
+                    }
+                }
+                LazyColumn(listModifier, listState, contentPadding = PaddingValues(end = INDEX_WIDTH, bottom = 24.dp)) {
+                    for ((letter, group) in sections) {
+                        item(key = "letter-$letter") { SectionHeader(letter.toString()) }
+                        contactRows(group, onOpen)
+                    }
+                }
+                AlphabetIndex(
+                    letters = sections.map { it.first },
+                    current = current,
+                    onSelect = { scope.launch { listState.scrollToItem(headerIndexes[it]) } },
+                    modifier = Modifier.align(Alignment.CenterEnd).padding(vertical = 8.dp),
+                )
             }
         }
     }
 }
+
+private val INDEX_WIDTH = 16.dp
 
 /**
  * Contacts whose name matches [query] (with layout fix and transliteration), then those whose number
