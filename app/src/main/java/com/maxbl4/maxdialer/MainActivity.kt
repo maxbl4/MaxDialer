@@ -1,37 +1,32 @@
 package com.maxbl4.maxdialer
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import androidx.activity.viewModels
+import com.maxbl4.maxdialer.ui.PhoneApp
+import com.maxbl4.maxdialer.ui.PhoneViewModel
+import com.maxbl4.maxdialer.ui.theme.MaxDialerTheme
 
-/** Placeholder until the features are agreed (docs/FEATURES.md). */
 class MainActivity : ComponentActivity() {
+    private val vm: PhoneViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) handleDial(intent)
+        addOnNewIntentListener(::handleDial)
         setContent {
-            val context = LocalContext.current
-            val colors = if (isSystemInDarkTheme()) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-            MaterialTheme(colorScheme = colors) {
-                Surface(Modifier.fillMaxSize()) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
-                    }
-                }
-            }
+            MaxDialerTheme { PhoneApp(vm) }
         }
+    }
+
+    /** A tel: link or another app asked to dial a number: put it on the dialpad. */
+    private fun handleDial(intent: Intent) {
+        if (intent.action != Intent.ACTION_DIAL && intent.action != Intent.ACTION_VIEW) return
+        val number = intent.data?.takeIf { it.scheme == "tel" }?.schemeSpecificPart ?: return
+        vm.setQuery(number.filter { it.isDigit() || it in "+*#,;" })
     }
 }

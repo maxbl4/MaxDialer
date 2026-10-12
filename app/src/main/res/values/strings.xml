@@ -1,4 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">MaxDialer</string>
+
+    <string name="tab_recents">Недавние</string>
+    <string name="tab_contacts">Контакты</string>
+    <string name="back">Назад</string>
+
+    <string name="no_recents">Журнал вызовов пуст</string>
+    <string name="no_matches">Совпадений нет</string>
+    <string name="no_contacts">Нет контактов</string>
+    <string name="private_number">Скрытый номер</string>
+    <string name="today">Сегодня</string>
+    <string name="yesterday">Вчера</string>
+
+    <string name="call_incoming">Входящий</string>
+    <string name="call_outgoing">Исходящий</string>
+    <string name="call_missed">Пропущенный</string>
+    <string name="call_rejected">Отклонённый</string>
+    <string name="call_blocked">Заблокированный</string>
+    <string name="call_voicemail">Голосовая почта</string>
+    <string name="duration_sec">%1$d с</string>
+    <string name="duration_min_sec">%1$d мин %2$d с</string>
+
+    <string name="add_to_contacts">Добавить в контакты</string>
+    <string name="paste">Вставить</string>
+    <string name="show_dialpad">Показать клавиатуру</string>
+    <string name="hide_dialpad">Скрыть клавиатуру</string>
+    <string name="backspace">Стереть</string>
+
+    <string name="menu_call_sim">Позвонить с SIM %1$d</string>
+    <string name="menu_sms">Отправить сообщение</string>
+    <string name="menu_edit_before_call">Изменить номер перед вызовом</string>
+    <string name="menu_copy">Копировать номер</string>
+    <string name="menu_create_contact">Создать контакт</string>
+    <string name="menu_add_to_contact">Добавить к контакту</string>
+    <string name="menu_open_contact">Открыть контакт</string>
+    <string name="menu_block">Заблокировать номер</string>
+    <string name="menu_delete_entry">Удалить из журнала</string>
+    <string name="menu_delete_all">Удалить все вызовы с номером</string>
+    <string name="delete_all_confirm">Удалить все вызовы с %1$s?</string>
+    <string name="delete">Удалить</string>
+    <string name="cancel">Отмена</string>
+    <string name="call_with">Позвонить с</string>
+    <string name="sim_n">SIM %1$d</string>
+
+    <string name="copied">Номер скопирован</string>
+    <string name="blocked">Номер заблокирован</string>
+    <string name="block_manually">Номер скопирован — добавьте его в список заблокированных</string>
+
+    <string name="details_history">Журнал вызовов</string>
+    <string name="action_call">Вызов</string>
+    <string name="action_message">Сообщение</string>
+    <string name="action_contact">Контакт</string>
+    <string name="action_add_contact">Добавить</string>
+
+    <string name="permissions_title">Нужен доступ</string>
+    <string name="permissions_text">MaxDialer показывает журнал вызовов и ищет по контактам, поэтому ему нужен доступ к журналу вызовов, контактам и звонкам.</string>
+    <string name="permissions_grant">Разрешить</string>
+    <string name="permissions_settings">Открыть настройки</string>
 </resources>
