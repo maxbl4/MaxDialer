@@ -9,6 +9,7 @@
     <string name="no_recents">Журнал вызовов пуст</string>
     <string name="no_matches">Совпадений нет</string>
     <string name="no_contacts">Нет контактов</string>
+    <string name="search">Поиск</string>
     <string name="private_number">Скрытый номер</string>
     <string name="today">Сегодня</string>
     <string name="yesterday">Вчера</string>
