@@ -32,6 +32,18 @@ object TextSearch {
             .map { it.second }
     }
 
+    /** Predicate with the same rules as [filter], for lists that keep their own order. */
+    fun matcher(query: String): (String) -> Boolean {
+        val literal = normalize(query).trim()
+        if (literal.isEmpty()) return { true }
+        val alternatives = variants(literal) - literal
+        return { label ->
+            val text = normalize(label)
+            rank(text, literal, allowSubstring = true) != null ||
+                alternatives.any { rank(text, it, allowSubstring = false) != null }
+        }
+    }
+
     internal fun normalize(s: String): String = s.lowercase(Locale.ROOT).replace('ё', 'е')
 
     internal fun variants(normalizedQuery: String): Set<String> {

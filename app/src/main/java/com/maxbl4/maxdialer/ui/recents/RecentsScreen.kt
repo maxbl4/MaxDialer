@@ -33,7 +33,16 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import com.maxbl4.maxdialer.ui.common.SearchField
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -100,12 +109,19 @@ fun RecentsScreen(
     actions: RecentsActions,
     modifier: Modifier = Modifier,
 ) {
+    /** Text typed in the call log search, or null when the search is closed. */
+    var logQuery by rememberSaveable { mutableStateOf<String?>(null) }
+    val searching = logQuery != null
+    BackHandler(enabled = searching) { logQuery = null }
+
+    val focus = LocalFocusManager.current
     val currentOpen = rememberUpdatedState(dialpadOpen)
     val collapseOnScroll = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (source == NestedScrollSource.UserInput && abs(available.y) > 2f && currentOpen.value) {
-                    onDialpadOpenChange(false)
+                if (source == NestedScrollSource.UserInput && abs(available.y) > 2f) {
+                    if (currentOpen.value) onDialpadOpenChange(false)
+                    focus.clearFocus()
                 }
                 return Offset.Zero
             }
@@ -116,11 +132,26 @@ fun RecentsScreen(
     }
 
     Column(modifier) {
-        Row(
+        val searchText = logQuery
+        if (searchText != null) {
+            val focusRequester = remember { FocusRequester() }
+            LaunchedEffect(Unit) { focusRequester.requestFocus() }
+            Row(
+                Modifier.fillMaxWidth().padding(start = 4.dp, end = OneUi.screenPadding, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RoundIcon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), onClick = { logQuery = null })
+                SearchField(searchText, { logQuery = it }, Modifier.weight(1f).focusRequester(focusRequester))
+            }
+        } else Row(
             Modifier.fillMaxWidth().padding(start = 24.dp, end = 8.dp, top = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(stringResource(R.string.tab_recents), Modifier.weight(1f), fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
+            RoundIcon(Icons.Filled.Search, stringResource(R.string.search), onClick = {
+                logQuery = ""
+                onDialpadOpenChange(false)
+            })
             Box {
                 var menu by remember { mutableStateOf(false) }
                 RoundIcon(Icons.Filled.MoreVert, null, onClick = { menu = true })
@@ -138,13 +169,16 @@ fun RecentsScreen(
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             val listModifier = Modifier.fillMaxSize().nestedScroll(collapseOnScroll)
-            if (query.isEmpty()) {
-                RecentsList(data, actions, listModifier)
-            } else {
-                ResultsList(results, actions, listModifier)
+            when {
+                searchText != null -> {
+                    val found = remember(data.recents, searchText) { filterRecents(data.recents, searchText) }
+                    RecentsList(data, found, stringResource(R.string.no_matches), actions, listModifier)
+                }
+                query.isEmpty() -> RecentsList(data, data.recents, stringResource(R.string.no_recents), actions, listModifier)
+                else -> ResultsList(results, actions, listModifier)
             }
             androidx.compose.animation.AnimatedVisibility(
-                visible = !dialpadOpen,
+                visible = !dialpadOpen && !searching,
                 enter = scaleIn() + fadeIn(),
                 exit = scaleOut() + fadeOut(),
                 modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
@@ -159,7 +193,7 @@ fun RecentsScreen(
                 }
             }
         }
-        if (query.isNotEmpty()) {
+        if (query.isNotEmpty() && !searching) {
             NumberDisplay(
                 text = formattedQuery,
                 showAddContact = query.count { it.isDigit() } >= 3 && data.contactsByKey[numberKey(query)] == null,
@@ -167,7 +201,7 @@ fun RecentsScreen(
                 onAddContact = { actions.onAddContact(query) },
             )
         }
-        AnimatedVisibility(visible = dialpadOpen, enter = expandVertically(), exit = shrinkVertically()) {
+        AnimatedVisibility(visible = dialpadOpen && !searching, enter = expandVertically(), exit = shrinkVertically()) {
             Column {
                 DialpadKeys(actions.onType)
                 DialpadActions(
@@ -186,12 +220,18 @@ fun RecentsScreen(
 private class DaySection(val title: java.time.LocalDate, val groups: List<RecentGroup>)
 
 @Composable
-private fun RecentsList(data: PhoneData, actions: RecentsActions, modifier: Modifier) {
-    val sections = remember(data.recents) {
-        data.recents.groupBy { localDate(it.latest.date) }.map { (day, groups) -> DaySection(day, groups) }
+private fun RecentsList(
+    data: PhoneData,
+    recents: List<RecentGroup>,
+    emptyText: String,
+    actions: RecentsActions,
+    modifier: Modifier,
+) {
+    val sections = remember(recents) {
+        recents.groupBy { localDate(it.latest.date) }.map { (day, groups) -> DaySection(day, groups) }
     }
     if (data.loaded && sections.isEmpty()) {
-        EmptyText(stringResource(R.string.no_recents), modifier)
+        EmptyText(emptyText, modifier)
         return
     }
     LazyColumn(modifier, rememberLazyListState(), contentPadding = PaddingValues(bottom = 88.dp)) {
