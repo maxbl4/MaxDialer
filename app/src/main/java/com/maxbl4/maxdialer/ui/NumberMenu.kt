@@ -42,6 +42,7 @@ sealed interface NumberAction {
     data object CreateContact : NumberAction
     data object AddToContact : NumberAction
     data object OpenContact : NumberAction
+    data object ToggleFavorite : NumberAction
     data object Block : NumberAction
     data object DeleteEntry : NumberAction
     data object DeleteAll : NumberAction
@@ -67,6 +68,8 @@ fun NumberMenuDialog(
                 add(stringResource(R.string.menu_add_to_contact) to NumberAction.AddToContact)
             } else {
                 add(stringResource(R.string.menu_open_contact) to NumberAction.OpenContact)
+                val favorite = if (target.contact.starred) R.string.menu_unfavorite else R.string.menu_favorite
+                add(stringResource(favorite) to NumberAction.ToggleFavorite)
             }
             add(stringResource(R.string.menu_block) to NumberAction.Block)
         }

@@ -60,6 +60,7 @@ val requiredPermissions = arrayOf(Manifest.permission.READ_CALL_LOG, Manifest.pe
 val allPermissions = requiredPermissions + arrayOf(
     Manifest.permission.CALL_PHONE,
     Manifest.permission.WRITE_CALL_LOG,
+    Manifest.permission.WRITE_CONTACTS,
     Manifest.permission.READ_PHONE_STATE,
 )
 
@@ -142,6 +143,14 @@ private fun MainContent(vm: PhoneViewModel) {
             NumberAction.CreateContact -> PhoneActions.createContact(context, target.number)
             NumberAction.AddToContact -> PhoneActions.addToContact(context, target.number)
             NumberAction.OpenContact -> target.contact?.let { PhoneActions.openContact(context, it.contactId, it.lookupKey) }
+            NumberAction.ToggleFavorite -> target.contact?.let { c ->
+                // Without write access the system contact card has the star.
+                if (context.checkSelfPermission(Manifest.permission.WRITE_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
+                    vm.setFavorite(c.contactId, !c.starred)
+                } else {
+                    PhoneActions.openContact(context, c.contactId, c.lookupKey)
+                }
+            }
             NumberAction.Block -> PhoneActions.block(context, target.number)
             NumberAction.DeleteEntry -> vm.deleteCalls(target.calls.map { it.id })
             NumberAction.DeleteAll -> confirmDeleteAll = target
@@ -192,9 +201,13 @@ private fun MainContent(vm: PhoneViewModel) {
                 )
                 else -> ContactsScreen(
                     contacts = data.contacts,
+                    favorites = data.favorites,
+                    countryIso = data.countryIso,
                     loaded = data.loaded,
                     onOpen = { PhoneActions.openContact(context, it.contactId, it.lookupKey) },
                     onCreate = { PhoneActions.createContact(context, "") },
+                    onCall = { call(it, null) },
+                    onMenu = { menu = it },
                     modifier = Modifier.weight(1f),
                 )
             }

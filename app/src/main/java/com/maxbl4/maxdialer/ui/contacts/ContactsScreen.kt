@@ -1,7 +1,7 @@
 package com.maxbl4.maxdialer.ui.contacts
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maxbl4.maxdialer.R
 import com.maxbl4.maxdialer.data.ContactPhone
+import com.maxbl4.maxdialer.data.PhoneRepository
+import com.maxbl4.maxdialer.ui.MenuTarget
 import com.maxbl4.maxdialer.search.TextSearch
 import com.maxbl4.maxdialer.search.numberVariants
 import com.maxbl4.maxdialer.ui.common.Avatar
@@ -61,13 +63,17 @@ import com.maxbl4.maxdialer.ui.common.cardRowShape
 import com.maxbl4.maxdialer.ui.recents.RoundIcon
 import com.maxbl4.maxdialer.ui.theme.OneUi
 
-/** Contacts with phone numbers, Russian names first, grouped by first letter, with search. */
+/** Favorites, then contacts with phone numbers grouped by first letter (Russian first), with search. */
 @Composable
 fun ContactsScreen(
     contacts: List<ContactPhone>,
+    favorites: List<ContactPhone>,
+    countryIso: String,
     loaded: Boolean,
     onOpen: (ContactPhone) -> Unit,
     onCreate: () -> Unit,
+    onCall: (String) -> Unit,
+    onMenu: (MenuTarget) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -77,6 +83,7 @@ fun ContactsScreen(
             .toList()
     }
     val results = remember(contacts, query) { if (query.isBlank()) emptyList() else searchContacts(contacts, query) }
+    val menuFor = { c: ContactPhone -> onMenu(MenuTarget(c.number, PhoneRepository.formatNumber(c.number, countryIso), c)) }
 
     val focus = LocalFocusManager.current
     val hideKeyboardOnScroll = remember {
@@ -98,34 +105,81 @@ fun ContactsScreen(
         when {
             query.isNotBlank() && results.isEmpty() -> EmptyText(stringResource(R.string.no_matches))
             query.isNotBlank() -> LazyColumn(listModifier, contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)) {
-                contactRows(results, onOpen)
+                contactRows(results, onOpen, menuFor)
             }
             loaded && sections.isEmpty() -> EmptyText(stringResource(R.string.no_contacts))
             else -> Box(Modifier.fillMaxSize()) {
                 val listState = rememberLazyListState()
                 val scope = rememberCoroutineScope()
-                // List index of each section header: a header plus its rows per section.
-                val headerIndexes = remember(sections) {
-                    sections.runningFold(0) { index, (_, group) -> index + 1 + group.size }.dropLast(1)
-                }
-                val current by remember(sections, headerIndexes) {
-                    derivedStateOf {
-                        val first = listState.firstVisibleItemIndex
-                        sections.getOrNull(headerIndexes.indexOfLast { it <= first })?.first
+                // Index label and list position of each section: favorites take a header and the grid,
+                // each letter a header plus its rows.
+                val index = remember(sections, favorites.isNotEmpty()) {
+                    buildList {
+                        var position = 0
+                        if (favorites.isNotEmpty()) {
+                            add(FAVORITES_LABEL to 0)
+                            position = 2
+                        }
+                        for ((letter, group) in sections) {
+                            add(letter to position)
+                            position += 1 + group.size
+                        }
                     }
                 }
+                val current by remember(index) {
+                    derivedStateOf { index.lastOrNull { it.second <= listState.firstVisibleItemIndex }?.first }
+                }
                 LazyColumn(listModifier, listState, contentPadding = PaddingValues(end = INDEX_WIDTH, bottom = 24.dp)) {
+                    if (favorites.isNotEmpty()) {
+                        item(key = "favorites-header") { SectionHeader(stringResource(R.string.favorites)) }
+                        item(key = "favorites") { FavoritesGrid(favorites, onCall, menuFor) }
+                    }
                     for ((letter, group) in sections) {
                         item(key = "letter-$letter") { SectionHeader(letter.toString()) }
-                        contactRows(group, onOpen)
+                        contactRows(group, onOpen, menuFor)
                     }
                 }
                 AlphabetIndex(
-                    letters = sections.map { it.first },
+                    letters = index.map { it.first },
                     current = current,
-                    onSelect = { scope.launch { listState.scrollToItem(headerIndexes[it]) } },
+                    onSelect = { scope.launch { listState.scrollToItem(index[it].second) } },
                     modifier = Modifier.align(Alignment.CenterEnd).padding(vertical = 8.dp),
                 )
+            }
+        }
+    }
+}
+
+private const val FAVORITES_LABEL = '★'
+private const val FAVORITES_COLUMNS = 4
+
+/** Tiles with photos; tap calls, long press opens the menu. */
+@Composable
+private fun FavoritesGrid(favorites: List<ContactPhone>, onCall: (String) -> Unit, onMenu: (ContactPhone) -> Unit) {
+    Column(
+        Modifier
+            .padding(horizontal = OneUi.screenPadding)
+            .clip(RoundedCornerShape(OneUi.cardRadius))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(vertical = 8.dp),
+    ) {
+        for (row in favorites.chunked(FAVORITES_COLUMNS)) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+                for (contact in row) {
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .combinedClickable(onClick = { onCall(contact.number) }, onLongClick = { onMenu(contact) })
+                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Avatar(contact.name, contact.photoUri, size = 56.dp)
+                        Spacer(Modifier.height(6.dp))
+                        Text(contact.name, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                repeat(FAVORITES_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
@@ -150,14 +204,18 @@ internal fun searchContacts(contacts: List<ContactPhone>, query: String): List<C
     return byName + byNumber
 }
 
-private fun LazyListScope.contactRows(group: List<ContactPhone>, onOpen: (ContactPhone) -> Unit) {
+private fun LazyListScope.contactRows(
+    group: List<ContactPhone>,
+    onOpen: (ContactPhone) -> Unit,
+    onMenu: (ContactPhone) -> Unit,
+) {
     itemsIndexed(group, key = { _, c -> c.contactId }) { i, contact ->
         Column(
             Modifier
                 .padding(horizontal = OneUi.screenPadding)
                 .clip(cardRowShape(i, group.size))
                 .background(MaterialTheme.colorScheme.surface)
-                .clickable { onOpen(contact) },
+                .combinedClickable(onClick = { onOpen(contact) }, onLongClick = { onMenu(contact) }),
         ) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Avatar(contact.name, contact.photoUri, size = 40.dp)

@@ -95,7 +95,7 @@ private val longPress = mapOf('0' to '+', '*' to ',', '#' to ';')
 @Composable
 fun DialpadKeys(onKey: (Char) -> Unit) {
     val haptic = LocalHapticFeedback.current
-    Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
+    Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 16.dp)) {
         for (row in keys) {
             Row(Modifier.fillMaxWidth()) {
                 for (key in row) {

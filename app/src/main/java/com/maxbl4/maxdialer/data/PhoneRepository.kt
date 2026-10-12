@@ -2,6 +2,7 @@ package com.maxbl4.maxdialer.data
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
@@ -45,6 +46,7 @@ class PhoneRepository(private val context: Context) {
             contactsByKey = contactsByKey,
             calls = calls,
             recents = groupCalls(calls, contactsByKey),
+            favorites = favorites(contacts, calls),
             sims = sims,
             defaultSim = defaultSim(),
             countryIso = iso,
@@ -55,7 +57,7 @@ class PhoneRepository(private val context: Context) {
     private fun loadContacts(): List<ContactPhone> {
         val projection = arrayOf(
             Phone.CONTACT_ID, Phone.LOOKUP_KEY, Phone.DISPLAY_NAME_PRIMARY, Phone.NUMBER,
-            Phone.TYPE, Phone.LABEL, Phone.PHOTO_THUMBNAIL_URI,
+            Phone.TYPE, Phone.LABEL, Phone.PHOTO_THUMBNAIL_URI, Phone.STARRED,
         )
         val result = ArrayList<ContactPhone>()
         resolver.query(Phone.CONTENT_URI, projection, null, null, null)?.use { c ->
@@ -69,6 +71,7 @@ class PhoneRepository(private val context: Context) {
                     type = c.getInt(4),
                     label = c.getString(5),
                     photoUri = c.getString(6),
+                    starred = c.getInt(7) != 0,
                 )
             }
         }
@@ -144,6 +147,19 @@ class PhoneRepository(private val context: Context) {
         )
     }
 
+    /** Returns false when the app may not write contacts. */
+    fun setStarred(contactId: Long, starred: Boolean): Boolean {
+        if (!granted(Manifest.permission.WRITE_CONTACTS)) return false
+        return try {
+            val values = ContentValues().apply { put(ContactsContract.Contacts.STARRED, if (starred) 1 else 0) }
+            resolver.update(ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contactId), values, null, null)
+            true
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Contacts write denied", e)
+            false
+        }
+    }
+
     private fun writeCallLog(block: () -> Unit) {
         if (!granted(Manifest.permission.WRITE_CALL_LOG)) return
         try {
@@ -194,6 +210,16 @@ fun scriptOrder(name: String): Int {
         Character.UnicodeScript.LATIN -> 1
         else -> 2
     }
+}
+
+/** One entry per starred contact: the number called last, or the first one. Keeps the contacts order. */
+internal fun favorites(contacts: List<ContactPhone>, calls: List<CallEntry>): List<ContactPhone> {
+    val lastCall = HashMap<String, Long>()
+    for (call in calls) if (!call.isPrivate) lastCall.putIfAbsent(call.key, call.date)
+    return contacts.filter { it.starred }
+        .groupBy { it.contactId }
+        .values
+        .map { phones -> phones.maxBy { lastCall[it.key] ?: 0L } }
 }
 
 internal fun groupCalls(calls: List<CallEntry>, contactsByKey: Map<String, ContactPhone>): List<RecentGroup> {

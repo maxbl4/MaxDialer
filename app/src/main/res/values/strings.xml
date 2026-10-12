@@ -36,6 +36,9 @@
     <string name="menu_create_contact">Создать контакт</string>
     <string name="menu_add_to_contact">Добавить к контакту</string>
     <string name="menu_open_contact">Открыть контакт</string>
+    <string name="menu_favorite">Добавить в избранное</string>
+    <string name="menu_unfavorite">Убрать из избранного</string>
+    <string name="favorites">Избранное</string>
     <string name="menu_block">Заблокировать номер</string>
     <string name="menu_delete_entry">Удалить из журнала</string>
     <string name="menu_delete_all">Удалить все вызовы с номером</string>

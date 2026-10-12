@@ -14,6 +14,7 @@ data class ContactPhone(
     val type: Int,
     val label: String?,
     val photoUri: String?,
+    val starred: Boolean = false,
 ) {
     val key = numberKey(number)
 }
@@ -59,6 +60,8 @@ data class PhoneData(
     /** Newest first. */
     val calls: List<CallEntry> = emptyList(),
     val recents: List<RecentGroup> = emptyList(),
+    /** Starred contacts, one entry each, with the number called last. */
+    val favorites: List<ContactPhone> = emptyList(),
     val sims: List<SimAccount> = emptyList(),
     val defaultSim: PhoneAccountHandle? = null,
     val countryIso: String = "",

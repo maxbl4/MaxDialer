@@ -70,6 +70,10 @@ class PhoneViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(io) { repository.deleteCalls(ids) }
     }
 
+    fun setFavorite(contactId: Long, starred: Boolean) {
+        viewModelScope.launch(io) { repository.setStarred(contactId, starred) }
+    }
+
     fun markMissedSeen() {
         if (_data.value.calls.none { it.isMissed && it.isNew }) return
         viewModelScope.launch(io) { repository.markMissedSeen() }
