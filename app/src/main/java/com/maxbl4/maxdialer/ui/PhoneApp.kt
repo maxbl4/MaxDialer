@@ -110,6 +110,7 @@ private fun MainContent(vm: PhoneViewModel) {
     val context = LocalContext.current
     val data by vm.data.collectAsStateWithLifecycle()
     val query by vm.query.collectAsStateWithLifecycle()
+    val dial by vm.dial.collectAsStateWithLifecycle()
     val results by vm.results.collectAsStateWithLifecycle()
 
     var tab by rememberSaveable { mutableIntStateOf(0) }
@@ -124,8 +125,8 @@ private fun MainContent(vm: PhoneViewModel) {
         if (sim == null && data.dualSim && data.defaultSim == null) {
             simPickFor = number
         } else {
+            // The typed number stays, so the search result does not vanish under the swipe.
             PhoneActions.call(context, number, sim?.handle)
-            vm.setQuery("")
         }
     }
 
@@ -183,6 +184,8 @@ private fun MainContent(vm: PhoneViewModel) {
                 0 -> RecentsScreen(
                     data = data,
                     query = query,
+                    dial = dial,
+                    onDialChange = vm::onDialChange,
                     results = results,
                     dialpadOpen = dialpadOpen,
                     onDialpadOpenChange = { dialpadOpen = it },

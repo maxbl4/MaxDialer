@@ -14,65 +14,76 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.InterceptPlatformTextInput
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maxbl4.maxdialer.R
+import com.maxbl4.maxdialer.data.PhoneRepository
 import com.maxbl4.maxdialer.data.SimAccount
 import com.maxbl4.maxdialer.search.T9
 import com.maxbl4.maxdialer.ui.theme.OneUi
+import kotlinx.coroutines.awaitCancellation
 
-/** Typed number with paste on long press and «Add to contacts» under it. */
+/**
+ * Typed number: tap to place the cursor, the dialpad types there. The system keyboard never opens;
+ * long press gives the usual text menu (paste, copy). «Add to contacts» is under it.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun NumberDisplay(
-    text: String,
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
+    countryIso: String,
     showAddContact: Boolean,
-    onPaste: () -> Unit,
     onAddContact: () -> Unit,
 ) {
-    var menu by remember { mutableStateOf(false) }
+    val formatting = remember(countryIso) { PhoneFormatting(countryIso) }
     Column(
-        Modifier
-            .fillMaxWidth()
-            .combinedClickable(onClick = {}, onLongClick = { menu = true })
-            .padding(horizontal = 24.dp, vertical = 4.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box {
-            Text(
-                text,
-                fontSize = if (text.length > 15) 24.sp else 30.sp,
-                maxLines = 1,
-                overflow = TextOverflow.StartEllipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.height(40.dp),
+        // Swallow keyboard requests: the dialpad is the keyboard.
+        InterceptPlatformTextInput(interceptor = { _, _ -> awaitCancellation() }) {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                visualTransformation = formatting,
+                textStyle = TextStyle(
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = if (value.text.length > 15) 24.sp else 30.sp,
+                    textAlign = TextAlign.Center,
+                ),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                modifier = Modifier.fillMaxWidth().height(40.dp),
             )
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(text = { Text(stringResource(R.string.paste)) }, onClick = { menu = false; onPaste() })
-            }
         }
         Text(
             stringResource(R.string.add_to_contacts),
@@ -85,6 +96,21 @@ fun NumberDisplay(
                 .padding(horizontal = 8.dp, vertical = 2.dp),
         )
     }
+}
+
+/** Shows the number formatted («8 916 123-45-67») while the cursor works on the typed characters. */
+private class PhoneFormatting(private val countryIso: String) : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val typed = text.text
+        val formatted = if (typed.length < 3) typed else PhoneRepository.formatNumber(typed, countryIso)
+        val offsets = runCatching { FormattedOffsets(typed, formatted) }.getOrNull()
+            ?: return TransformedText(text, OffsetMapping.Identity)
+        return TransformedText(AnnotatedString(formatted), offsets)
+    }
+
+    override fun equals(other: Any?) = other is PhoneFormatting && other.countryIso == countryIso
+
+    override fun hashCode() = countryIso.hashCode()
 }
 
 private val keys = listOf("123", "456", "789", "*0#")

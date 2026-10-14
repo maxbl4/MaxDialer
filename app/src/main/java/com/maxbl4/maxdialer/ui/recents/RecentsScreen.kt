@@ -57,6 +57,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -103,6 +104,8 @@ class RecentsActions(
 fun RecentsScreen(
     data: PhoneData,
     query: String,
+    dial: TextFieldValue,
+    onDialChange: (TextFieldValue) -> Unit,
     results: List<SearchHit<SearchTarget>>,
     dialpadOpen: Boolean,
     onDialpadOpenChange: (Boolean) -> Unit,
@@ -126,9 +129,6 @@ fun RecentsScreen(
                 return Offset.Zero
             }
         }
-    }
-    val formattedQuery = remember(query, data.countryIso) {
-        if (query.length < 3) query else PhoneRepository.formatNumber(query, data.countryIso)
     }
 
     Column(modifier) {
@@ -195,9 +195,10 @@ fun RecentsScreen(
         }
         if (query.isNotEmpty() && !searching) {
             NumberDisplay(
-                text = formattedQuery,
+                value = dial,
+                onValueChange = onDialChange,
+                countryIso = data.countryIso,
                 showAddContact = query.count { it.isDigit() } >= 3 && data.contactsByKey[numberKey(query)] == null,
-                onPaste = actions.onPaste,
                 onAddContact = { actions.onAddContact(query) },
             )
         }
