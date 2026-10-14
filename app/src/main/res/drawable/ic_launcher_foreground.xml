@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Phone handset inside the 72dp adaptive-icon safe zone. -->
+<!-- White handset, about half the icon wide, centred in the 72dp adaptive-icon safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group android:translateX="30" android:translateY="30">
+    <group
+        android:scaleX="2.6"
+        android:scaleY="2.6"
+        android:translateX="22.8"
+        android:translateY="22.8">
         <path
             android:fillColor="#FFFFFFFF"
-            android:pathData="M13.24,21.58c3.84,7.55 10.03,13.71 17.58,17.58l5.87,-5.87c0.72,-0.72 1.79,-0.96 2.72,-0.64 2.99,0.99 6.21,1.52 9.52,1.52 1.47,0 2.67,1.2 2.67,2.67v9.31c0,1.47 -1.2,2.67 -2.67,2.67C23.89,48.82 3.18,28.11 3.18,2.67 3.18,1.2 4.38,0 5.85,0h9.33c1.47,0 2.67,1.2 2.67,2.67 0,3.33 0.53,6.53 1.52,9.52 0.29,0.93 0.08,1.97 -0.67,2.72l-5.47,6.67z" />
+            android:pathData="M20.01,15.38c-1.23,0 -2.42,-0.2 -3.53,-0.56 -0.35,-0.12 -0.74,-0.03 -1.01,0.24l-1.57,1.97c-2.83,-1.35 -5.48,-3.9 -6.89,-6.83l1.95,-1.66c0.27,-0.28 0.35,-0.67 0.24,-1.02 -0.37,-1.11 -0.56,-2.3 -0.56,-3.53 0,-0.54 -0.45,-0.99 -0.99,-0.99H4.19C3.65,3 3,3.24 3,3.99 3,13.28 10.73,21 20.01,21c0.71,0 0.99,-0.63 0.99,-1.18v-3.45c0,-0.54 -0.45,-0.99 -0.99,-0.99z" />
     </group>
 </vector>
