@@ -5,8 +5,9 @@
 .DESCRIPTION
     Sets JAVA_HOME to Android Studio's bundled JBR, builds the release APK (or debug with -DebugBuild),
     installs it with adb, compiles it ahead of time so scrolling is smooth from the first launch,
-    and starts the app. The release build is signed with the debug key, so it installs over a
-    debug build and keeps granted permissions.
+    and starts the app. The release build is signed with the release key plus the rotation
+    proof from the debug key (sign-release.ps1), so release and debug builds install over each
+    other and keep granted permissions.
 
 .PARAMETER Serial
     adb serial of the target device. Optional when exactly one device/emulator is connected.
@@ -69,6 +70,7 @@ if ($LASTEXITCODE -ne 0) { throw "Gradle build failed (exit $LASTEXITCODE)." }
 
 $apk = Join-Path $projectDir "app\build\outputs\apk\$variant\app-$variant.apk"
 if (-not (Test-Path $apk)) { throw "APK not found at '$apk'." }
+if (-not $DebugBuild) { & "$projectDir\sign-release.ps1" -Apk $apk }
 
 # --- Install ---
 Write-Host "Installing to $Serial ..." -ForegroundColor Cyan
