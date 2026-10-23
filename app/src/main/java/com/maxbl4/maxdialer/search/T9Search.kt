@@ -10,8 +10,17 @@ class SearchItem<T>(
     /** Time of the last call with this number, 0 if none. */
     val lastCall: Long,
     val callCount: Int,
+    /** Family name from the contact, when it has one; it must be part of [name]. */
+    val surname: String? = null,
 ) {
     internal val tokens = name?.let(T9::tokenize).orEmpty()
+
+    /** Index in [tokens] of the first word of the surname, or -1. */
+    internal val surnameToken: Int = run {
+        if (name == null || surname.isNullOrBlank()) return@run -1
+        val at = name.indexOf(surname.trim(), ignoreCase = true)
+        if (at < 0) -1 else tokens.indexOfFirst { it.positions[0] >= at }
+    }
     internal val numberDigits = NumberDigits.of(number)
     internal val variants = numberVariants(numberDigits.digits)
 }
@@ -27,12 +36,15 @@ class SearchHit<T>(
 
 /**
  * Dialpad search over names (T9, Latin and Cyrillic at once) and numbers.
- * The more exact the match, the higher it ranks; within the same rank, recent calls go first.
+ * Results come in three tiers: the number being typed, word starts of names, then weak matches.
+ * Within a tier, people called recently go first, then the more exact match: surname before first name.
  */
 object T9Search {
     const val EXACT_NUMBER = 110
     /** The query is the start of a number and long enough that the user is surely typing a number. */
     const val NUMBER_PREFIX_LONG = 100
+    /** The query is the start of the surname: «Изо» → Димон Изотов. */
+    const val SURNAME_START = 92
     /** The query is the start of the first word of the name. */
     const val NAME_START = 90
     /** The query spans the starts of several words from the first one: «ИП», «ИванП» → Иван Петров. */
@@ -52,6 +64,16 @@ object T9Search {
     private const val MIN_NUMBER_INFIX = 3
     private const val MIN_NAME_INFIX = 2
 
+    /**
+     * 0: clearly a number being typed; 1: starts of name words and short number prefixes;
+     * 2: matches inside words or numbers.
+     */
+    private fun tier(score: Int) = when {
+        score >= NUMBER_PREFIX_LONG -> 0
+        score >= NUMBER_PREFIX_MEDIUM -> 1
+        else -> 2
+    }
+
     fun <T> search(items: List<SearchItem<T>>, query: String, limit: Int = 200): List<SearchHit<T>> {
         val numberQuery = query.removePrefix("+")
         if (numberQuery.isEmpty() || numberQuery.any { it !in '0'..'9' }) return emptyList()
@@ -59,15 +81,16 @@ object T9Search {
 
         val hits = ArrayList<SearchHit<T>>()
         for (item in items) {
-            val name = if (searchNames) matchName(item.tokens, numberQuery) else null
+            val name = if (searchNames) matchName(item.tokens, item.surnameToken, numberQuery) else null
             val number = matchNumber(item, numberQuery)
             val score = maxOf(name?.score ?: 0, number?.score ?: 0)
             if (score == 0) continue
             hits += SearchHit(item, score, name?.highlights.orEmpty(), number?.highlight)
         }
         hits.sortWith(
-            compareByDescending<SearchHit<T>> { it.score }
+            compareBy<SearchHit<T>> { tier(it.score) }
                 .thenByDescending { it.item.lastCall }
+                .thenByDescending { it.score }
                 .thenByDescending { it.item.callCount }
                 .thenBy(nullsLast()) { it.item.name?.lowercase() }
                 .thenBy { it.item.number },
@@ -82,11 +105,12 @@ object T9Search {
     /** A non-empty prefix of length [length] of token [token]. */
     private class Piece(val token: Int, val length: Int)
 
-    private fun matchName(tokens: List<T9.Token>, query: String): NameMatch? {
+    private fun matchName(tokens: List<T9.Token>, surnameToken: Int, query: String): NameMatch? {
         var best: NameMatch? = null
         for (start in tokens.indices) {
             val pieces = split(tokens, start, query, 0) ?: continue
             val score = when {
+                pieces.size == 1 && start == surnameToken -> SURNAME_START
                 pieces.size == 1 && start == 0 -> NAME_START
                 pieces.size == 1 -> WORD_START
                 start == 0 -> WORDS_FROM_START

@@ -13,6 +13,7 @@ import android.os.Looper
 import android.provider.CallLog
 import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds.Phone
+import android.provider.ContactsContract.CommonDataKinds.StructuredName
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.telephony.PhoneNumberUtils
@@ -59,6 +60,7 @@ class PhoneRepository(private val context: Context) {
             Phone.CONTACT_ID, Phone.LOOKUP_KEY, Phone.DISPLAY_NAME_PRIMARY, Phone.NUMBER,
             Phone.TYPE, Phone.LABEL, Phone.PHOTO_THUMBNAIL_URI, Phone.STARRED,
         )
+        val familyNames = loadFamilyNames()
         val result = ArrayList<ContactPhone>()
         resolver.query(Phone.CONTENT_URI, projection, null, null, null)?.use { c ->
             while (c.moveToNext()) {
@@ -72,11 +74,30 @@ class PhoneRepository(private val context: Context) {
                     label = c.getString(5),
                     photoUri = c.getString(6),
                     starred = c.getInt(7) != 0,
+                    familyName = familyNames[c.getLong(0)],
                 )
             }
         }
         result.sortWith(compareBy<ContactPhone>({ scriptOrder(it.name) }, { it.name.lowercase() }))
         return result
+    }
+
+    /** Family name per contact, from the structured name; the dialpad ranks surname matches first. */
+    private fun loadFamilyNames(): Map<Long, String> {
+        val names = HashMap<Long, String>()
+        resolver.query(
+            ContactsContract.Data.CONTENT_URI,
+            arrayOf(StructuredName.CONTACT_ID, StructuredName.FAMILY_NAME),
+            "${ContactsContract.Data.MIMETYPE} = ?",
+            arrayOf(StructuredName.CONTENT_ITEM_TYPE),
+            null,
+        )?.use { c ->
+            while (c.moveToNext()) {
+                val family = c.getString(1)?.takeIf { it.isNotBlank() } ?: continue
+                names.putIfAbsent(c.getLong(0), family)
+            }
+        }
+        return names
     }
 
     private fun loadCalls(): List<CallEntry> {
@@ -264,7 +285,7 @@ private fun buildSearchItems(
         val stat = stats[p.key]
         items += SearchItem(
             SearchTarget(p.number, p), p.name, PhoneRepository.formatNumber(p.number, iso),
-            stat?.lastCall ?: 0, stat?.count ?: 0,
+            stat?.lastCall ?: 0, stat?.count ?: 0, p.familyName,
         )
     }
     val contactKeys = contacts.mapTo(HashSet()) { it.key }

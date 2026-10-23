@@ -42,6 +42,36 @@ class T9SearchTest {
     }
 
     @Test
+    fun `someone called recently ranks above never called even when the match is on the surname`() {
+        val neverCalled = item("Hell-Hound", "1")
+        val calledYesterday = item("Димон Изотов", "2", lastCall = 100)
+        val calledLongAgo = item("Кентавр Саша", "3", lastCall = 10)
+        assertEquals(
+            listOf("Димон Изотов", "Кентавр Саша", "Hell-Hound"),
+            search("435", neverCalled, calledYesterday, calledLongAgo),
+        )
+    }
+
+    @Test
+    fun `surname start ranks above first name start`() {
+        val firstName = item("Изольда Петрова", "1")
+        val surname = SearchItem("Димон Изотов", "Димон Изотов", "2", 0, 0, surname = "Изотов")
+        val surnameFirst = SearchItem("Изотов Дмитрий", "Изотов Дмитрий", "3", 0, 0, surname = "Изотов")
+        assertEquals(
+            setOf("Димон Изотов", "Изотов Дмитрий"),
+            search("435", firstName, surname, surnameFirst).take(2).toSet(),
+        )
+        assertEquals("Изольда Петрова", search("435", firstName, surname, surnameFirst).last())
+    }
+
+    @Test
+    fun `matches inside a word stay below word starts despite call history`() {
+        val inside = item("Абв Аиван", "1", lastCall = 100)
+        val wordStart = item("Иван", "2")
+        assertEquals(listOf("Иван", "Абв Аиван"), search("4225", inside, wordStart))
+    }
+
+    @Test
     fun `long number prefix ranks above names`() {
         val name = item("Tyano", "+7 999 000-00-00")
         val number = item("Яна", "8 926 612-34-56")

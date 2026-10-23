@@ -15,6 +15,7 @@ data class ContactPhone(
     val label: String?,
     val photoUri: String?,
     val starred: Boolean = false,
+    val familyName: String? = null,
 ) {
     val key = numberKey(number)
 }
