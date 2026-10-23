@@ -163,6 +163,22 @@ fun localDate(millis: Long): LocalDate = Instant.ofEpochMilli(millis).atZone(Zon
 
 fun formatTime(millis: Long): String = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(timeFormat)
 
+private val shortDayFormat = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
+private val shortDayYearFormat = DateTimeFormatter.ofPattern("dd.MM.yy")
+
+/** When something happened, short: «14:32» today, «Вчера», «12 окт.», «12.10.25». */
+@Composable
+fun formatWhen(millis: Long): String {
+    val day = localDate(millis)
+    val today = LocalDate.now()
+    return when {
+        day == today -> formatTime(millis)
+        day == today.minusDays(1) -> stringResource(R.string.yesterday)
+        day.year == today.year -> day.format(shortDayFormat)
+        else -> day.format(shortDayYearFormat)
+    }
+}
+
 @Composable
 fun formatDay(day: LocalDate): String {
     val today = LocalDate.now()

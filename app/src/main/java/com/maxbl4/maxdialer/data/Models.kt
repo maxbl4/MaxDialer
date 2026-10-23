@@ -52,7 +52,12 @@ data class RecentGroup(val calls: List<CallEntry>, val contact: ContactPhone?) {
 data class SimAccount(val handle: PhoneAccountHandle, val slot: Int, val label: String)
 
 /** What a dialpad search result points at. */
-data class SearchTarget(val number: String, val contact: ContactPhone?)
+data class SearchTarget(
+    val number: String,
+    val contact: ContactPhone?,
+    /** The last call with this number, null if there were none. */
+    val lastCall: CallEntry? = null,
+)
 
 data class PhoneData(
     val loaded: Boolean = false,

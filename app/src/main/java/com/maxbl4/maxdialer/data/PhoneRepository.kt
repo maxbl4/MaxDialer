@@ -268,13 +268,15 @@ private fun buildSearchItems(
     calls: List<CallEntry>,
     iso: String,
 ): List<SearchItem<SearchTarget>> {
-    class Stat(var lastCall: Long = 0, var count: Int = 0)
+    class Stat(var latest: CallEntry? = null, var count: Int = 0) {
+        val lastCall get() = latest?.date ?: 0L
+    }
 
     val stats = HashMap<String, Stat>()
     for (call in calls) {
         if (call.isPrivate) continue
         val stat = stats.getOrPut(call.key) { Stat() }
-        stat.lastCall = maxOf(stat.lastCall, call.date)
+        if (stat.latest.let { it == null || call.date > it.date }) stat.latest = call
         stat.count++
     }
 
@@ -284,7 +286,7 @@ private fun buildSearchItems(
         if (!seen.add("${p.contactId}/${p.key}")) continue
         val stat = stats[p.key]
         items += SearchItem(
-            SearchTarget(p.number, p), p.name, PhoneRepository.formatNumber(p.number, iso),
+            SearchTarget(p.number, p, stat?.latest), p.name, PhoneRepository.formatNumber(p.number, iso),
             stat?.lastCall ?: 0, stat?.count ?: 0, p.familyName,
         )
     }
@@ -293,7 +295,7 @@ private fun buildSearchItems(
         if (call.isPrivate || call.key in contactKeys || !seen.add(call.key)) continue
         val stat = stats.getValue(call.key)
         items += SearchItem(
-            SearchTarget(call.number, null), null, PhoneRepository.formatNumber(call.number, iso),
+            SearchTarget(call.number, null, stat.latest), null, PhoneRepository.formatNumber(call.number, iso),
             stat.lastCall, stat.count,
         )
     }

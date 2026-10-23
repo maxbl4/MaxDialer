@@ -79,6 +79,7 @@ import com.maxbl4.maxdialer.ui.common.callTypeLabel
 import com.maxbl4.maxdialer.ui.common.cardRowShape
 import com.maxbl4.maxdialer.ui.common.formatDay
 import com.maxbl4.maxdialer.ui.common.formatTime
+import com.maxbl4.maxdialer.ui.common.formatWhen
 import com.maxbl4.maxdialer.ui.common.highlighted
 import com.maxbl4.maxdialer.ui.common.localDate
 import com.maxbl4.maxdialer.ui.theme.OneUi
@@ -365,14 +366,30 @@ private fun ResultRow(hit: SearchHit<SearchTarget>, index: Int, count: Int, acti
             ) {
                 Avatar(name, target.contact?.photoUri)
                 Spacer(Modifier.width(14.dp))
+                val lastCall = target.lastCall
                 Column(Modifier.weight(1f)) {
                     val numberText = highlighted(hit.item.number, listOfNotNull(hit.numberHighlight), accent)
-                    if (name != null) {
-                        Text(highlighted(name, hit.nameHighlights, accent), fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(numberText, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, maxLines = 1)
-                    } else {
-                        Text(numberText, fontSize = 17.sp, maxLines = 1)
+                    Text(
+                        if (name != null) highlighted(name, hit.nameHighlights, accent) else numberText,
+                        fontSize = 17.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    // The last call's icon shows the result comes from the call history.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (lastCall != null) {
+                            Icon(callTypeIcon(lastCall.type), null, Modifier.size(15.dp), tint = callTypeColor(lastCall.type))
+                            Spacer(Modifier.width(5.dp))
+                        }
+                        when {
+                            name != null -> Text(numberText, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, maxLines = 1)
+                            lastCall != null -> Text(callTypeLabel(lastCall.type), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+                        }
                     }
+                }
+                if (lastCall != null) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(formatWhen(lastCall.date), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                 }
             }
             if (index < count - 1) RowDivider()
